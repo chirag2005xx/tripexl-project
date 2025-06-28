@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Button, Input, Heading, VStack, useToast } from '@chakra-ui/react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Box, Button, Input, Heading, VStack, useToast, Text, HStack } from '@chakra-ui/react';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -109,7 +109,19 @@ function Login() {
           </VStack>
         </form>
         
-        {/* Demo credentials for testing */}
+        {/* Register Link */}
+        <Box mt={6} textAlign="center">
+          <Text color="gray.600">
+            Don't have an account?{' '}
+            <Link to="/register">
+              <Button variant="link" colorScheme="green" fontWeight="bold">
+                Register here
+              </Button>
+            </Link>
+          </Text>
+        </Box>
+        
+        {/* Demo credentials for testing */}  
         <Box mt={4} p={3} bg="blue.50" borderRadius="md">
           <Heading size="sm" mb={2}>Demo Credentials (for testing):</Heading>
           <VStack spacing={1} fontSize="sm">

@@ -16,6 +16,13 @@ function Dashboard() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const userId = user.id || user.email;
 
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
   // Load user's jobs
   useEffect(() => {
     const userJobs = JSON.parse(localStorage.getItem(`jobs_${userId}`) || "[]");
@@ -173,8 +180,16 @@ function Dashboard() {
 
   return (
     <Box p={8}>
-      <Heading mb={4}>Welcome, {user.username || user.email || "User"} 👋</Heading>
-      <Text mb={6}>Manage your jobs and view your routes on the map below.</Text>
+      {/* Header with logout */}
+      <Flex justify="space-between" align="center" mb={6}>
+        <Box>
+          <Heading mb={2}>Welcome, {user.username || user.email || "User"} 👋</Heading>
+          <Text>Manage your jobs and view your routes on the map below.</Text>
+        </Box>
+        <Button colorScheme="red" variant="outline" onClick={handleLogout}>
+          Logout
+        </Button>
+      </Flex>
       
       <Grid templateColumns={{ base: "1fr", lg: "1fr 1fr" }} gap={6}>
         {/* Left side - Job list and actions */}
