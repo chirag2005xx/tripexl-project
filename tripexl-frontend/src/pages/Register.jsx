@@ -18,42 +18,46 @@ function Register() {
   const toast = useToast();
 
   const handleRegister = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      const res = await fetch("http://localhost:5000/api/auth/register", {
+  try {
+    const res = await fetch(
+      `${process.env.REACT_APP_API_URL}/api/auth/register`,   // 👈 changed
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        toast({
-          title: "Registration successful! Please login.",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-        navigate("/login");
-      } else {
-        toast({
-          title: data.error || "Registration failed",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
       }
-    } catch (error) {
-      console.error("Registration error:", error);
+    );
+
+    const data = await res.json();
+    if (res.ok) {
       toast({
-        title: "Network error - please try again",
+        title: "Registration successful! Please login.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      navigate("/login");
+    } else {
+      toast({
+        title: data.error || "Registration failed",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
     }
-  };
+  } catch (error) {
+    console.error("Registration error:", error);
+    toast({
+      title: "Network error - please try again",
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+    });
+  }
+};
+
 
   return (
     <Box

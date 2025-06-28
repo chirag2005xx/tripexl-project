@@ -9,83 +9,81 @@ function Login() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+
+  try {
+    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      toast({
+        title: 'Login successful',
+        status: 'success',
+        duration: 3000,
+        isClosable: true
       });
 
-      const data = await res.json();
-      
-      if (res.ok) {
-        toast({ 
-          title: 'Login successful', 
-          status: 'success', 
-          duration: 3000, 
-          isClosable: true 
-        });
-        
-        // Store token and user info
-        localStorage.setItem('token', data.token);
-        
-        // Store user info (assuming the API returns user data)
-        const userInfo = {
-          id: data.user?.id || data.id || email,
-          email: email,
-          username: data.user?.username || data.username || email.split('@')[0],
-          ...data.user
-        };
-        
-        localStorage.setItem('user', JSON.stringify(userInfo));
-        
-        navigate('/dashboard');
-      } else {
-        toast({ 
-          title: data.error || 'Login failed', 
-          status: 'error', 
-          duration: 3000, 
-          isClosable: true 
-        });
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      
-      // For development/testing - allow demo login
-      if (email === 'demo@example.com' && password === 'demo123') {
-        const demoUser = {
-          id: 'demo_user',
-          email: 'demo@example.com',
-          username: 'Demo User'
-        };
-        
-        localStorage.setItem('token', 'demo_token');
-        localStorage.setItem('user', JSON.stringify(demoUser));
-        
-        toast({ 
-          title: 'Demo login successful', 
-          status: 'success', 
-          duration: 3000, 
-          isClosable: true 
-        });
-        
-        navigate('/dashboard');
-      } else {
-        toast({ 
-          title: 'Network error - please try again', 
-          status: 'error', 
-          duration: 3000, 
-          isClosable: true 
-        });
-      }
-    } finally {
-      setIsLoading(false);
+      localStorage.setItem('token', data.token);
+
+      const userInfo = {
+        id: data.user?.id || data.id || email,
+        email: email,
+        username: data.user?.username || data.username || email.split('@')[0],
+        ...data.user
+      };
+
+      localStorage.setItem('user', JSON.stringify(userInfo));
+
+      navigate('/dashboard');
+    } else {
+      toast({
+        title: data.error || 'Login failed',
+        status: 'error',
+        duration: 3000,
+        isClosable: true
+      });
     }
-  };
+  } catch (error) {
+    console.error('Login error:', error);
+
+    if (email === 'demo@example.com' && password === 'demo123') {
+      const demoUser = {
+        id: 'demo_user',
+        email: 'demo@example.com',
+        username: 'Demo User'
+      };
+
+      localStorage.setItem('token', 'demo_token');
+      localStorage.setItem('user', JSON.stringify(demoUser));
+
+      toast({
+        title: 'Demo login successful',
+        status: 'success',
+        duration: 3000,
+        isClosable: true
+      });
+
+      navigate('/dashboard');
+    } else {
+      toast({
+        title: 'Network error - please try again',
+        status: 'error',
+        duration: 3000,
+        isClosable: true
+      });
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const handleRegisterClick = () => {
     navigate('/register');
