@@ -1,15 +1,25 @@
-import { Box, VStack, Button, Input, Select, Text, useToast } from "@chakra-ui/react";
+import {
+  Box,
+  VStack,
+  Button,
+  Input,
+  Select,
+  Text,
+  useToast,
+  Heading,
+  HStack,
+  SimpleGrid,
+} from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import tt from "@tomtom-international/web-sdk-maps";
-import * as ttServices from "@tomtom-international/web-sdk-services";
 
 function Booking() {
   const [vehicle, setVehicle] = useState("");
   const [date, setDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [coords, setCoords] = useState({ lat: 12.9716, lng: 77.5946 }); // Bangalore default
-  const [waypoints, setWaypoints] = useState([]); // for multiple pins
+  const [coords, setCoords] = useState({ lat: 12.9716, lng: 77.5946 });
+  const [waypoints, setWaypoints] = useState([]);
   const [eta, setEta] = useState(null);
   const [showTraffic, setShowTraffic] = useState(false);
   const [routeData, setRouteData] = useState(null);
@@ -30,20 +40,17 @@ function Booking() {
 
     mapRef.current = map;
 
-    // click to add multiple waypoints
     map.on("click", (e) => {
       const { lng, lat } = e.lngLat;
       const newWaypoint = { lat, lng };
       setWaypoints((prev) => [...prev, newWaypoint]);
       const marker = new tt.Marker().setLngLat([lng, lat]).addTo(map);
       markersRef.current.push(marker);
-      console.log("Added waypoint:", newWaypoint);
     });
 
     return () => map.remove();
   }, []);
 
-  // search location
   const handleSearch = async () => {
     if (!searchQuery) return;
     try {
@@ -58,18 +65,31 @@ function Booking() {
           zoom: 14,
         });
       } else {
-        alert("No location found");
+        toast({
+          title: "No location found",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
-    } catch (err) {
-      console.error("Search error", err);
-      alert("Search failed, try again.");
+    } catch {
+      toast({
+        title: "Search failed",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
-  // calculate route and ETA
   const handleRoute = async () => {
     if (waypoints.length < 2) {
-      alert("Please set at least 2 points (click on map).");
+      toast({
+        title: "Set at least 2 waypoints",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
       return;
     }
     const locations = waypoints.map((wp) => `${wp.lat},${wp.lng}`).join(":");
@@ -78,41 +98,24 @@ function Booking() {
         `https://api.tomtom.com/routing/1/calculateRoute/${locations}/json?key=yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99&traffic=true&routeRepresentation=polyline`
       );
       const data = await res.json();
-      console.log("Route data", data);
 
       if (data.routes && data.routes[0]) {
-        // Get the route coordinates from the guidance points
         const route = [];
-        data.routes[0].legs.forEach(leg => {
-          leg.points.forEach(point => {
+        data.routes[0].legs.forEach((leg) => {
+          leg.points.forEach((point) => {
             route.push([point.longitude, point.latitude]);
           });
         });
 
-        // Also add guidance instruction points for better route visibility
-        if (data.routes[0].guidance && data.routes[0].guidance.instructions) {
-          data.routes[0].guidance.instructions.forEach(instruction => {
-            if (instruction.point) {
-              route.push([instruction.point.longitude, instruction.point.latitude]);
-            }
-          });
-        }
-
-        // Remove duplicate coordinates and sort
         const uniqueRoute = route.filter((coord, index, arr) => {
-          return index === 0 || coord[0] !== arr[index-1][0] || coord[1] !== arr[index-1][1];
+          return index === 0 || coord[0] !== arr[index - 1][0] || coord[1] !== arr[index - 1][1];
         });
 
-        // draw route
         const geojson = {
           type: "Feature",
-          geometry: {
-            type: "LineString",
-            coordinates: uniqueRoute,
-          },
+          geometry: { type: "LineString", coordinates: uniqueRoute },
         };
 
-        // Remove existing route if present
         if (mapRef.current.getSource("route")) {
           mapRef.current.removeLayer("route");
           mapRef.current.removeSource("route");
@@ -123,83 +126,72 @@ function Booking() {
           id: "route",
           type: "line",
           source: "route",
-          layout: {
-            "line-join": "round",
-            "line-cap": "round"
-          },
-          paint: {
-            "line-color": "#007aff",
-            "line-width": 6,
-            "line-opacity": 0.8
-          },
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: { "line-color": "#007aff", "line-width": 6, "line-opacity": 0.8 },
         });
 
-        // Fit map to show entire route
         const bounds = new tt.LngLatBounds();
-        uniqueRoute.forEach(coord => bounds.extend(coord));
+        uniqueRoute.forEach((coord) => bounds.extend(coord));
         mapRef.current.fitBounds(bounds, { padding: 50 });
 
-        // calculate ETA and store route data
         const travelTime = data.routes[0].summary.travelTimeInSeconds;
-        const distance = data.routes[0].summary.lengthInMeters;
         setEta(`${Math.round(travelTime / 60)} min`);
         setRouteData({
           coordinates: uniqueRoute,
           travelTime,
-          distance,
-          summary: data.routes[0].summary
+          distance: data.routes[0].summary.lengthInMeters,
+          summary: data.routes[0].summary,
         });
       } else {
-        alert("No route found.");
+        toast({
+          title: "No route found",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
-    } catch (err) {
-      console.error("Route error", err);
-      alert("Route calculation failed");
+    } catch {
+      toast({
+        title: "Route calculation failed",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
-  // Toggle traffic overlay
   const toggleTraffic = () => {
     if (!mapRef.current) return;
-    
+
     if (showTraffic) {
-      // Remove traffic layer
       if (mapRef.current.getLayer("traffic")) {
         mapRef.current.removeLayer("traffic");
         mapRef.current.removeSource("traffic");
       }
       setShowTraffic(false);
     } else {
-      // Add traffic layer
       mapRef.current.addSource("traffic", {
         type: "raster",
         tiles: [
-          `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99`
+          `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99`,
         ],
-        tileSize: 256
+        tileSize: 256,
       });
-      
       mapRef.current.addLayer({
         id: "traffic",
         type: "raster",
-        source: "traffic"
+        source: "traffic",
       });
       setShowTraffic(true);
     }
   };
 
-  // Clear current route and waypoints
   const clearRoute = () => {
-    // Clear waypoints
     setWaypoints([]);
     setEta(null);
     setRouteData(null);
-    
-    // Clear markers
-    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
-    
-    // Clear route on map
     if (mapRef.current.getSource("route")) {
       mapRef.current.removeLayer("route");
       mapRef.current.removeSource("route");
@@ -207,40 +199,9 @@ function Booking() {
   };
 
   const handleBooking = () => {
-    // Validation
-    if (!vehicle) {
+    if (!vehicle || !date || waypoints.length < 2 || !routeData) {
       toast({
-        title: "Please select a vehicle",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    if (!date) {
-      toast({
-        title: "Please select a date",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    if (waypoints.length < 2) {
-      toast({
-        title: "Please set at least 2 waypoints on the map",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    if (!routeData) {
-      toast({
-        title: "Please calculate the route first",
+        title: "Please complete all details and calculate the route",
         status: "warning",
         duration: 3000,
         isClosable: true,
@@ -248,13 +209,11 @@ function Booking() {
       return;
     }
 
-    // Get current user
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    
-    // Create job object
+
     const newJob = {
-      id: Date.now().toString(), // Simple ID generation
-      userId: user.id || user.email, // Use user ID or email as identifier
+      id: Date.now().toString(),
+      userId: user.id || user.email,
       vehicle,
       date,
       waypoints,
@@ -262,102 +221,178 @@ function Booking() {
       eta,
       status: "booked",
       createdAt: new Date().toISOString(),
-      pickupAddress: "Click location", // You can enhance this with reverse geocoding
-      dropoffAddress: "Click location",
     };
 
-    // Get existing jobs for this user
     const existingJobs = JSON.parse(localStorage.getItem(`jobs_${newJob.userId}`) || "[]");
-    
-    // Add new job
     existingJobs.push(newJob);
-    
-    // Save to localStorage
     localStorage.setItem(`jobs_${newJob.userId}`, JSON.stringify(existingJobs));
-    
+
     toast({
-      title: "Job booked successfully!",
+      title: "Job booked successfully",
       description: `${vehicle} booked for ${date}`,
       status: "success",
       duration: 3000,
       isClosable: true,
     });
 
-    // Clear the form and route
     clearRoute();
     setVehicle("");
     setDate("");
     setSearchQuery("");
-    
-    // Navigate back to dashboard
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 2000);
+    setTimeout(() => navigate("/dashboard"), 2000);
   };
 
   return (
-    <Box p={8}>
-      <VStack spacing={4}>
-        <Text fontSize="2xl" fontWeight="bold" mb={4}>
-          Book a New Job
-        </Text>
-        
-        <Select placeholder="Select vehicle" value={vehicle} onChange={(e) => setVehicle(e.target.value)}>
-          <option value="car">Car</option>
-          <option value="van">Van</option>
-          <option value="truck">Truck</option>
-          <option value="bike">Bike</option>
-        </Select>
-        
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        
-        <Input
-          placeholder="Search location"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        
-        <Button colorScheme="blue" onClick={handleSearch}>
-          Search Location
-        </Button>
-        
-        <Button colorScheme="purple" onClick={handleRoute}>
-          Calculate Route
-        </Button>
-        
-        <Button colorScheme="orange" onClick={toggleTraffic}>
-          {showTraffic ? "Hide Traffic" : "Show Traffic"}
-        </Button>
-        
-        <Button colorScheme="red" onClick={clearRoute}>
-          Clear Route
-        </Button>
-        
-        <Button colorScheme="green" onClick={handleBooking} size="lg">
-          Book Job
-        </Button>
-        
-        {eta && (
-          <Text fontWeight="bold" color="green.600">
-            ETA: {eta}
-          </Text>
-        )}
-        
-        {waypoints.length > 0 && (
-          <Text color="blue.600">
-            Waypoints: {waypoints.length} (Click map to add more)
-          </Text>
-        )}
-        
-        <Box
-          ref={mapElement}
-          mt={4}
-          width="100%"
-          height="500px"
-          border="1px solid gray"
-          borderRadius="md"
-        />
-      </VStack>
+    <Box
+      minH="100vh"
+      position="relative"
+      overflow="hidden"
+      background="black"
+      fontFamily="Inter, -apple-system, sans-serif"
+    >
+      {/* Netflix-like animated background */}
+      <Box
+        position="absolute"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        background="linear-gradient(45deg, #000000 0%, #141414 50%, #000000 100%)"
+        opacity="0.9"
+        zIndex="0"
+      />
+      <Box
+        position="absolute"
+        top="-50%"
+        left="-25%"
+        width="150%"
+        height="200%"
+        background="radial-gradient(circle at 30% 30%, rgba(229, 9, 20, 0.15) 0%, transparent 50%)"
+        animation="float 20s ease-in-out infinite"
+        zIndex="0"
+      />
+      <Box
+        position="absolute"
+        top="20%"
+        right="-20%"
+        width="100%"
+        height="100%"
+        background="radial-gradient(circle at 70% 70%, rgba(229, 9, 20, 0.1) 0%, transparent 40%)"
+        animation="pulse 15s ease-in-out infinite"
+        zIndex="0"
+      />
+
+      <Box p={8} position="relative" zIndex="10">
+        <VStack spacing={6}>
+          <Heading
+            bgGradient="linear(to-r, #E50914, #FF6B6B)"
+            bgClip="text"
+            fontWeight="900"
+            fontSize="32px"
+            letterSpacing="-0.02em"
+          >
+            Book a New Job
+          </Heading>
+
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="100%">
+            <Select
+              placeholder="Select vehicle"
+              value={vehicle}
+              onChange={(e) => setVehicle(e.target.value)}
+              bg="rgba(0,0,0,0.6)"
+              color="white"
+            >
+              <option value="car">Car</option>
+              <option value="van">Van</option>
+              <option value="truck">Truck</option>
+              <option value="bike">Bike</option>
+            </Select>
+
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              bg="rgba(0,0,0,0.6)"
+              color="white"
+            />
+          </SimpleGrid>
+
+          <HStack w="100%">
+            <Input
+              placeholder="Search location"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              bg="rgba(0,0,0,0.6)"
+              color="white"
+            />
+            <Button
+              background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
+              color="white"
+              _hover={{ background: "#F40612" }}
+              onClick={handleSearch}
+            >
+              Search
+            </Button>
+          </HStack>
+
+          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} w="100%">
+            <Button
+              background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
+              color="white"
+              onClick={handleRoute}
+            >
+              Calculate Route
+            </Button>
+            <Button colorScheme="orange" onClick={toggleTraffic}>
+              {showTraffic ? "Hide Traffic" : "Show Traffic"}
+            </Button>
+            <Button colorScheme="red" onClick={clearRoute}>
+              Clear Route
+            </Button>
+          </SimpleGrid>
+
+          <Button
+            size="lg"
+            background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
+            color="white"
+            onClick={handleBooking}
+          >
+            Book Job
+          </Button>
+
+          {eta && (
+            <Text fontWeight="bold" color="green.400">
+              ETA: {eta}
+            </Text>
+          )}
+
+          {waypoints.length > 0 && (
+            <Text color="blue.300">
+              Waypoints: {waypoints.length} (click map to add more)
+            </Text>
+          )}
+
+          <Box
+            ref={mapElement}
+            width="100%"
+            height="500px"
+            border="1px solid rgba(255,255,255,0.2)"
+            borderRadius="12px"
+            bg="black"
+          />
+        </VStack>
+      </Box>
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: rotate(0deg) scale(1); }
+          50% { transform: rotate(2deg) scale(1.05); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.1; transform: scale(1); }
+          50% { opacity: 0.2; transform: scale(1.1); }
+        }
+      `}</style>
     </Box>
   );
 }
