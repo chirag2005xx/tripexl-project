@@ -9,6 +9,7 @@ import {
   Heading,
   HStack,
   SimpleGrid,
+  Flex, // Import Flex for side-by-side layout
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -40,7 +41,7 @@ function Booking() {
     }
 
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=geometry,places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_Maps_API_KEY}&libraries=geometry,places`;
     script.async = true;
     script.onload = initializeMap;
     script.onerror = () => {
@@ -182,7 +183,7 @@ function Booking() {
       const lng = e.latLng.lng();
       const newWaypoint = { lat, lng };
       setWaypoints((prev) => [...prev, newWaypoint]);
-      
+
       const marker = new window.google.maps.Marker({
         position: { lat, lng },
         map: map,
@@ -196,7 +197,7 @@ function Booking() {
     if (!searchQuery || !window.google) return;
 
     const geocoder = new window.google.maps.Geocoder();
-    
+
     try {
       const results = await new Promise((resolve, reject) => {
         geocoder.geocode({ address: searchQuery }, (results, status) => {
@@ -211,10 +212,10 @@ function Booking() {
       const location = results[0].geometry.location;
       const lat = location.lat();
       const lng = location.lng();
-      
+
       mapRef.current.setCenter({ lat, lng });
       mapRef.current.setZoom(14);
-      
+
     } catch (error) {
       toast({
         title: "No location found",
@@ -268,7 +269,7 @@ function Booking() {
       // Calculate total duration and distance
       let totalDuration = 0;
       let totalDistance = 0;
-      
+
       result.routes[0].legs.forEach(leg => {
         totalDuration += leg.duration.value;
         totalDistance += leg.distance.value;
@@ -311,11 +312,11 @@ function Booking() {
     setWaypoints([]);
     setEta(null);
     setRouteData(null);
-    
+
     // Clear markers
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
-    
+
     // Clear directions
     if (directionsRendererRef.current) {
       directionsRendererRef.current.setMap(null);
@@ -406,8 +407,9 @@ function Booking() {
         zIndex="0"
       />
 
-      <Box p={8} position="relative" zIndex="10">
-        <VStack spacing={6}>
+      <Flex p={8} position="relative" zIndex="10" direction={{ base: "column", md: "row" }} spacing={8}>
+        {/* Left Section: Booking Controls */}
+        <VStack spacing={6} align="stretch" flex="1" mr={{ md: 8 }}>
           <Heading
             bgGradient="linear(to-r, #E50914, #FF6B6B)"
             bgClip="text"
@@ -418,13 +420,14 @@ function Booking() {
             Book a New Job
           </Heading>
 
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="100%">
+          <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
             <Select
               placeholder="Select vehicle"
               value={vehicle}
               onChange={(e) => setVehicle(e.target.value)}
               bg="rgba(0,0,0,0.6)"
               color="white"
+              _placeholder={{ color: "gray.400" }}
             >
               <option value="car">Car</option>
               <option value="van">Van</option>
@@ -438,16 +441,18 @@ function Booking() {
               onChange={(e) => setDate(e.target.value)}
               bg="rgba(0,0,0,0.6)"
               color="white"
+              _placeholder={{ color: "gray.400" }}
             />
           </SimpleGrid>
 
-          <HStack w="100%">
+          <HStack>
             <Input
               placeholder="Search location"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               bg="rgba(0,0,0,0.6)"
               color="white"
+              _placeholder={{ color: "gray.400" }}
             />
             <Button
               background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
@@ -459,7 +464,7 @@ function Booking() {
             </Button>
           </HStack>
 
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} w="100%">
+          <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4}>
             <Button
               background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
               color="white"
@@ -485,27 +490,28 @@ function Booking() {
           </Button>
 
           {eta && (
-            <Text fontWeight="bold" color="green.400">
+            <Text fontWeight="bold" color="green.400" textAlign="center">
               ETA: {eta}
             </Text>
           )}
 
           {waypoints.length > 0 && (
-            <Text color="blue.300">
+            <Text color="blue.300" textAlign="center">
               Waypoints: {waypoints.length} (click map to add more)
             </Text>
           )}
-
-          <Box
-            ref={mapElement}
-            width="100%"
-            height="500px"
-            border="1px solid rgba(255,255,255,0.2)"
-            borderRadius="12px"
-            bg="black"
-          />
         </VStack>
-      </Box>
+
+        {/* Right Section: Map */}
+        <Box
+          ref={mapElement}
+          flex="2" // Map takes more space
+          height={{ base: "400px", md: "700px" }} // Responsive height
+          border="1px solid rgba(255,255,255,0.2)"
+          borderRadius="12px"
+          bg="black"
+        />
+      </Flex>
 
       <style>{`
         @keyframes float {
