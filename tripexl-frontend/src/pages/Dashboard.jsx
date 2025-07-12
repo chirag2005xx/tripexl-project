@@ -12,16 +12,18 @@ import {
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import tt from "@tomtom-international/web-sdk-maps";
 
 function Dashboard() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [showTraffic, setShowTraffic] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const mapElement = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const directionsRenderersRef = useRef([]);
+  const trafficLayerRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const userId = user.id || user.email;
@@ -32,104 +34,275 @@ function Dashboard() {
     navigate("/login");
   };
 
+  // Load jobs from localStorage
   useEffect(() => {
     const userJobs = JSON.parse(localStorage.getItem(`jobs_${userId}`) || "[]");
     setJobs(userJobs);
   }, [userId]);
 
+  // Initialize Google Maps
   useEffect(() => {
     if (!mapElement.current) return;
 
-    const map = tt.map({
-      key: "yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99",
-      container: mapElement.current,
-      center: [77.5946, 12.9716],
-      zoom: 10
+    // Check if Google Maps is already loaded
+    if (window.google && window.google.maps) {
+      initializeMap();
+      return;
+    }
+
+    // Load Google Maps script
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=geometry,places`;
+    script.async = true;
+    script.onload = initializeMap;
+    script.onerror = () => {
+      console.error('Failed to load Google Maps');
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
+  const initializeMap = () => {
+    if (!window.google || !mapElement.current) return;
+
+    const map = new window.google.maps.Map(mapElement.current, {
+      center: { lat: 12.9716, lng: 77.5946 }, // Bangalore coordinates
+      zoom: 10,
+      mapTypeId: 'roadmap',
+      styles: [
+        {
+          "featureType": "all",
+          "elementType": "geometry.fill",
+          "stylers": [{ "weight": "2.00" }]
+        },
+        {
+          "featureType": "all",
+          "elementType": "geometry.stroke",
+          "stylers": [{ "color": "#9c9c9c" }]
+        },
+        {
+          "featureType": "all",
+          "elementType": "labels.text",
+          "stylers": [{ "visibility": "on" }]
+        },
+        {
+          "featureType": "landscape",
+          "elementType": "all",
+          "stylers": [{ "color": "#f2f2f2" }]
+        },
+        {
+          "featureType": "landscape",
+          "elementType": "geometry.fill",
+          "stylers": [{ "color": "#ffffff" }]
+        },
+        {
+          "featureType": "landscape.man_made",
+          "elementType": "geometry.fill",
+          "stylers": [{ "color": "#ffffff" }]
+        },
+        {
+          "featureType": "poi",
+          "elementType": "all",
+          "stylers": [{ "visibility": "off" }]
+        },
+        {
+          "featureType": "road",
+          "elementType": "all",
+          "stylers": [{ "saturation": -100 }, { "lightness": 45 }]
+        },
+        {
+          "featureType": "road",
+          "elementType": "geometry.fill",
+          "stylers": [{ "color": "#eeeeee" }]
+        },
+        {
+          "featureType": "road",
+          "elementType": "labels.text.fill",
+          "stylers": [{ "color": "#7b7b7b" }]
+        },
+        {
+          "featureType": "road",
+          "elementType": "labels.text.stroke",
+          "stylers": [{ "color": "#ffffff" }]
+        },
+        {
+          "featureType": "road.highway",
+          "elementType": "all",
+          "stylers": [{ "visibility": "simplified" }]
+        },
+        {
+          "featureType": "road.arterial",
+          "elementType": "labels.icon",
+          "stylers": [{ "visibility": "off" }]
+        },
+        {
+          "featureType": "transit",
+          "elementType": "all",
+          "stylers": [{ "visibility": "off" }]
+        },
+        {
+          "featureType": "water",
+          "elementType": "all",
+          "stylers": [{ "color": "#46bcec" }, { "visibility": "on" }]
+        },
+        {
+          "featureType": "water",
+          "elementType": "geometry.fill",
+          "stylers": [{ "color": "#c8d7d4" }]
+        },
+        {
+          "featureType": "water",
+          "elementType": "labels.text.fill",
+          "stylers": [{ "color": "#070707" }]
+        },
+        {
+          "featureType": "water",
+          "elementType": "labels.text.stroke",
+          "stylers": [{ "color": "#ffffff" }]
+        }
+      ]
     });
 
     mapRef.current = map;
 
-    return () => {
-      if (map) map.remove();
-    };
-  }, []);
+    // Initialize traffic layer
+    trafficLayerRef.current = new window.google.maps.TrafficLayer();
+    
+    // Mark map as loaded
+    setMapLoaded(true);
+  };
 
+  // Display jobs on map when map is loaded or jobs change
   useEffect(() => {
-    if (!mapRef.current || jobs.length === 0) return;
+    if (!mapLoaded || !mapRef.current || jobs.length === 0) return;
 
-    markersRef.current.forEach((marker) => marker.remove());
+    displayJobsOnMap();
+  }, [jobs, mapLoaded]);
+
+  const displayJobsOnMap = () => {
+    if (!mapRef.current) return;
+
+    // Clear existing markers and direction renderers
+    markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
 
-    jobs.forEach((_, index) => {
-      const routeId = `route-${index}`;
-      if (mapRef.current.getSource(routeId)) {
-        mapRef.current.removeLayer(routeId);
-        mapRef.current.removeSource(routeId);
-      }
-    });
+    directionsRenderersRef.current.forEach((renderer) => renderer.setMap(null));
+    directionsRenderersRef.current = [];
 
-    const allBounds = new tt.LngLatBounds();
+    const bounds = new window.google.maps.LatLngBounds();
     let hasValidBounds = false;
 
     jobs.forEach((job, index) => {
-      if (!job.routeData || !job.waypoints) return;
+      if (!job.waypoints || job.waypoints.length === 0) return;
 
-      const routeId = `route-${index}`;
-      const geojson = {
-        type: "Feature",
-        geometry: {
-          type: "LineString",
-          coordinates: job.routeData.coordinates
-        }
-      };
+      console.log(`Processing job ${index + 1}:`, job); // Debug log
 
-      mapRef.current.addSource(routeId, { type: "geojson", data: geojson });
-      mapRef.current.addLayer({
-        id: routeId,
-        type: "line",
-        source: routeId,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": getJobColor(index),
-          "line-width": 4,
-          "line-opacity": 0.7
-        }
-      });
-
+      // Create markers for each waypoint
       job.waypoints.forEach((waypoint, wpIndex) => {
         const isStart = wpIndex === 0;
         const isEnd = wpIndex === job.waypoints.length - 1;
 
-        let markerColor = "#007aff";
-        if (isStart) markerColor = "#28a745";
-        if (isEnd) markerColor = "#dc3545";
+        let iconColor = "#007aff";
+        let iconLabel = "•";
+        if (isStart) {
+          iconColor = "#28a745";
+          iconLabel = "S";
+        }
+        if (isEnd) {
+          iconColor = "#dc3545";
+          iconLabel = "E";
+        }
 
-        const marker = new tt.Marker({ color: markerColor })
-          .setLngLat([waypoint.lng, waypoint.lat])
-          .addTo(mapRef.current);
+        const marker = new window.google.maps.Marker({
+          position: { lat: waypoint.lat, lng: waypoint.lng },
+          map: mapRef.current,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 12,
+            fillColor: iconColor,
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
+          },
+          label: {
+            text: iconLabel,
+            color: 'white',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          }
+        });
 
-        const popup = new tt.Popup({ offset: 25 }).setHTML(`
-          <div style="padding: 10px;">
-            <h4>Job #${job.id}</h4>
-            <p><strong>Vehicle:</strong> ${job.vehicle}</p>
-            <p><strong>Date:</strong> ${job.date}</p>
-            <p><strong>ETA:</strong> ${job.eta}</p>
-            <p><strong>Status:</strong> ${job.status}</p>
-          </div>
-        `);
+        const infoWindow = new window.google.maps.InfoWindow({
+          content: `
+            <div style="padding: 10px;">
+              <h4>Job #${job.id}</h4>
+              <p><strong>Vehicle:</strong> ${job.vehicle}</p>
+              <p><strong>Date:</strong> ${job.date}</p>
+              <p><strong>ETA:</strong> ${job.eta}</p>
+              <p><strong>Status:</strong> ${job.status}</p>
+              <p><strong>Waypoint:</strong> ${wpIndex + 1} of ${job.waypoints.length}</p>
+            </div>
+          `
+        });
 
-        marker.setPopup(popup);
+        marker.addListener('click', () => {
+          infoWindow.open(mapRef.current, marker);
+        });
+
         markersRef.current.push(marker);
-
-        allBounds.extend([waypoint.lng, waypoint.lat]);
+        bounds.extend({ lat: waypoint.lat, lng: waypoint.lng });
         hasValidBounds = true;
       });
+
+      // Draw routes between waypoints if there are multiple waypoints
+      if (job.waypoints.length > 1) {
+        const directionsService = new window.google.maps.DirectionsService();
+        const directionsRenderer = new window.google.maps.DirectionsRenderer({
+          map: mapRef.current,
+          polylineOptions: {
+            strokeColor: getJobColor(index),
+            strokeWeight: 4,
+            strokeOpacity: 0.7
+          },
+          suppressMarkers: true // We're using custom markers
+        });
+
+        directionsRenderersRef.current.push(directionsRenderer);
+
+        // Create waypoints for directions service
+        const waypoints = job.waypoints.slice(1, -1).map(waypoint => ({
+          location: { lat: waypoint.lat, lng: waypoint.lng },
+          stopover: true
+        }));
+
+        directionsService.route({
+          origin: { lat: job.waypoints[0].lat, lng: job.waypoints[0].lng },
+          destination: { 
+            lat: job.waypoints[job.waypoints.length - 1].lat, 
+            lng: job.waypoints[job.waypoints.length - 1].lng 
+          },
+          waypoints: waypoints,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          optimizeWaypoints: false
+        }, (result, status) => {
+          if (status === 'OK') {
+            directionsRenderer.setDirections(result);
+          } else {
+            console.error('Directions request failed due to ' + status);
+          }
+        });
+      }
     });
 
     if (hasValidBounds) {
-      mapRef.current.fitBounds(allBounds, { padding: 50 });
+      mapRef.current.fitBounds(bounds, { padding: 50 });
     }
-  }, [jobs]);
+  };
 
   const getJobColor = (index) => {
     const colors = [
@@ -145,27 +318,13 @@ function Dashboard() {
   };
 
   const toggleTraffic = () => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !trafficLayerRef.current) return;
 
     if (showTraffic) {
-      if (mapRef.current.getLayer("traffic")) {
-        mapRef.current.removeLayer("traffic");
-        mapRef.current.removeSource("traffic");
-      }
+      trafficLayerRef.current.setMap(null);
       setShowTraffic(false);
     } else {
-      mapRef.current.addSource("traffic", {
-        type: "raster",
-        tiles: [
-          `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99`
-        ],
-        tileSize: 256
-      });
-      mapRef.current.addLayer({
-        id: "traffic",
-        type: "raster",
-        source: "traffic"
-      });
+      trafficLayerRef.current.setMap(mapRef.current);
       setShowTraffic(true);
     }
   };
@@ -175,6 +334,24 @@ function Dashboard() {
     setJobs(updatedJobs);
     localStorage.setItem(`jobs_${userId}`, JSON.stringify(updatedJobs));
   };
+
+  // Refresh jobs when coming back from booking
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const userJobs = JSON.parse(localStorage.getItem(`jobs_${userId}`) || "[]");
+      setJobs(userJobs);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check for changes when the window gains focus
+    window.addEventListener('focus', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleStorageChange);
+    };
+  }, [userId]);
 
   return (
     <Box
@@ -359,6 +536,12 @@ function Dashboard() {
                 bg="black"
               />
 
+              {!mapLoaded && (
+                <Text color="gray.500" textAlign="center">
+                  Loading map...
+                </Text>
+              )}
+
               {jobs.length > 0 && (
                 <Box
                   p={3}
@@ -368,7 +551,7 @@ function Dashboard() {
                   backdropFilter="blur(5px)"
                 >
                   <Text fontSize="sm" color="white">
-                    <strong>Map Legend:</strong> Green markers = Start points, Red markers = End points. Each job has a different colored route. Click markers for job details.
+                    <strong>Map Legend:</strong> Green markers (S) = Start points, Red markers (E) = End points. Each job has a different colored route. Click markers for job details.
                   </Text>
                 </Box>
               )}

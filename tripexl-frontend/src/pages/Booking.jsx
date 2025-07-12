@@ -12,7 +12,6 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import tt from "@tomtom-international/web-sdk-maps";
 
 function Booking() {
   const [vehicle, setVehicle] = useState("");
@@ -27,54 +26,198 @@ function Booking() {
   const mapElement = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const directionsServiceRef = useRef(null);
+  const directionsRendererRef = useRef(null);
+  const trafficLayerRef = useRef(null);
   const navigate = useNavigate();
   const toast = useToast();
 
+  // Load Google Maps script
   useEffect(() => {
-    const map = tt.map({
-      key: "yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99",
-      container: mapElement.current,
-      center: [coords.lng, coords.lat],
+    if (window.google) {
+      initializeMap();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=geometry,places`;
+    script.async = true;
+    script.onload = initializeMap;
+    script.onerror = () => {
+      toast({
+        title: "Failed to load Google Maps",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
+  const initializeMap = () => {
+    if (!window.google || !mapElement.current) return;
+
+    const map = new window.google.maps.Map(mapElement.current, {
+      center: { lat: coords.lat, lng: coords.lng },
       zoom: 10,
+      styles: [
+        {
+          featureType: "all",
+          elementType: "geometry",
+          stylers: [{ color: "#242f3e" }]
+        },
+        {
+          featureType: "all",
+          elementType: "labels.text.stroke",
+          stylers: [{ color: "#242f3e" }]
+        },
+        {
+          featureType: "all",
+          elementType: "labels.text.fill",
+          stylers: [{ color: "#746855" }]
+        },
+        {
+          featureType: "administrative.locality",
+          elementType: "labels.text.fill",
+          stylers: [{ color: "#d59563" }]
+        },
+        {
+          featureType: "poi",
+          elementType: "labels.text.fill",
+          stylers: [{ color: "#d59563" }]
+        },
+        {
+          featureType: "poi.park",
+          elementType: "geometry",
+          stylers: [{ color: "#263c3f" }]
+        },
+        {
+          featureType: "poi.park",
+          elementType: "labels.text.fill",
+          stylers: [{ color: "#6b9a76" }]
+        },
+        {
+          featureType: "road",
+          elementType: "geometry",
+          stylers: [{ color: "#38414e" }]
+        },
+        {
+          featureType: "road",
+          elementType: "geometry.stroke",
+          stylers: [{ color: "#212a37" }]
+        },
+        {
+          featureType: "road",
+          elementType: "labels.text.fill",
+          stylers: [{ color: "#9ca5b3" }]
+        },
+        {
+          featureType: "road.highway",
+          elementType: "geometry",
+          stylers: [{ color: "#746855" }]
+        },
+        {
+          featureType: "road.highway",
+          elementType: "geometry.stroke",
+          stylers: [{ color: "#1f2835" }]
+        },
+        {
+          featureType: "road.highway",
+          elementType: "labels.text.fill",
+          stylers: [{ color: "#f3d19c" }]
+        },
+        {
+          featureType: "transit",
+          elementType: "geometry",
+          stylers: [{ color: "#2f3948" }]
+        },
+        {
+          featureType: "transit.station",
+          elementType: "labels.text.fill",
+          stylers: [{ color: "#d59563" }]
+        },
+        {
+          featureType: "water",
+          elementType: "geometry",
+          stylers: [{ color: "#17263c" }]
+        },
+        {
+          featureType: "water",
+          elementType: "labels.text.fill",
+          stylers: [{ color: "#515c6d" }]
+        },
+        {
+          featureType: "water",
+          elementType: "labels.text.stroke",
+          stylers: [{ color: "#17263c" }]
+        }
+      ]
     });
 
     mapRef.current = map;
 
-    map.on("click", (e) => {
-      const { lng, lat } = e.lngLat;
-      const newWaypoint = { lat, lng };
-      setWaypoints((prev) => [...prev, newWaypoint]);
-      const marker = new tt.Marker().setLngLat([lng, lat]).addTo(map);
-      markersRef.current.push(marker);
+    // Initialize directions service and renderer
+    directionsServiceRef.current = new window.google.maps.DirectionsService();
+    directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+      draggable: true,
+      polylineOptions: {
+        strokeColor: "#007aff",
+        strokeWeight: 6,
+        strokeOpacity: 0.8
+      }
     });
 
-    return () => map.remove();
-  }, []);
+    // Initialize traffic layer
+    trafficLayerRef.current = new window.google.maps.TrafficLayer();
+
+    // Add click listener to add waypoints
+    map.addListener("click", (e) => {
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      const newWaypoint = { lat, lng };
+      setWaypoints((prev) => [...prev, newWaypoint]);
+      
+      const marker = new window.google.maps.Marker({
+        position: { lat, lng },
+        map: map,
+        title: `Waypoint ${waypoints.length + 1}`
+      });
+      markersRef.current.push(marker);
+    });
+  };
 
   const handleSearch = async () => {
-    if (!searchQuery) return;
+    if (!searchQuery || !window.google) return;
+
+    const geocoder = new window.google.maps.Geocoder();
+    
     try {
-      const res = await fetch(
-        `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(searchQuery)}.json?key=yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99`
-      );
-      const data = await res.json();
-      const pos = data.results[0]?.position;
-      if (pos) {
-        mapRef.current.flyTo({
-          center: [pos.lon, pos.lat],
-          zoom: 14,
+      const results = await new Promise((resolve, reject) => {
+        geocoder.geocode({ address: searchQuery }, (results, status) => {
+          if (status === 'OK' && results && results.length > 0) {
+            resolve(results);
+          } else {
+            reject(new Error('No results found'));
+          }
         });
-      } else {
-        toast({
-          title: "No location found",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } catch {
+      });
+
+      const location = results[0].geometry.location;
+      const lat = location.lat();
+      const lng = location.lng();
+      
+      mapRef.current.setCenter({ lat, lng });
+      mapRef.current.setZoom(14);
+      
+    } catch (error) {
       toast({
-        title: "Search failed",
+        title: "No location found",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -83,7 +226,7 @@ function Booking() {
   };
 
   const handleRoute = async () => {
-    if (waypoints.length < 2) {
+    if (waypoints.length < 2 || !directionsServiceRef.current || !directionsRendererRef.current) {
       toast({
         title: "Set at least 2 waypoints",
         status: "warning",
@@ -92,65 +235,57 @@ function Booking() {
       });
       return;
     }
-    const locations = waypoints.map((wp) => `${wp.lat},${wp.lng}`).join(":");
+
+    const origin = waypoints[0];
+    const destination = waypoints[waypoints.length - 1];
+    const waypointsForRoute = waypoints.slice(1, -1).map(wp => ({
+      location: new window.google.maps.LatLng(wp.lat, wp.lng),
+      stopover: true
+    }));
+
     try {
-      const res = await fetch(
-        `https://api.tomtom.com/routing/1/calculateRoute/${locations}/json?key=yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99&traffic=true&routeRepresentation=polyline`
-      );
-      const data = await res.json();
-
-      if (data.routes && data.routes[0]) {
-        const route = [];
-        data.routes[0].legs.forEach((leg) => {
-          leg.points.forEach((point) => {
-            route.push([point.longitude, point.latitude]);
-          });
+      const result = await new Promise((resolve, reject) => {
+        directionsServiceRef.current.route({
+          origin: new window.google.maps.LatLng(origin.lat, origin.lng),
+          destination: new window.google.maps.LatLng(destination.lat, destination.lng),
+          waypoints: waypointsForRoute,
+          optimizeWaypoints: true,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          avoidHighways: false,
+          avoidTolls: false
+        }, (result, status) => {
+          if (status === 'OK') {
+            resolve(result);
+          } else {
+            reject(new Error('Directions request failed'));
+          }
         });
+      });
 
-        const uniqueRoute = route.filter((coord, index, arr) => {
-          return index === 0 || coord[0] !== arr[index - 1][0] || coord[1] !== arr[index - 1][1];
-        });
+      directionsRendererRef.current.setDirections(result);
+      directionsRendererRef.current.setMap(mapRef.current);
 
-        const geojson = {
-          type: "Feature",
-          geometry: { type: "LineString", coordinates: uniqueRoute },
-        };
+      // Calculate total duration and distance
+      let totalDuration = 0;
+      let totalDistance = 0;
+      
+      result.routes[0].legs.forEach(leg => {
+        totalDuration += leg.duration.value;
+        totalDistance += leg.distance.value;
+      });
 
-        if (mapRef.current.getSource("route")) {
-          mapRef.current.removeLayer("route");
-          mapRef.current.removeSource("route");
+      setEta(`${Math.round(totalDuration / 60)} min`);
+      setRouteData({
+        directions: result,
+        travelTime: totalDuration,
+        distance: totalDistance,
+        summary: {
+          travelTimeInSeconds: totalDuration,
+          lengthInMeters: totalDistance
         }
+      });
 
-        mapRef.current.addSource("route", { type: "geojson", data: geojson });
-        mapRef.current.addLayer({
-          id: "route",
-          type: "line",
-          source: "route",
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: { "line-color": "#007aff", "line-width": 6, "line-opacity": 0.8 },
-        });
-
-        const bounds = new tt.LngLatBounds();
-        uniqueRoute.forEach((coord) => bounds.extend(coord));
-        mapRef.current.fitBounds(bounds, { padding: 50 });
-
-        const travelTime = data.routes[0].summary.travelTimeInSeconds;
-        setEta(`${Math.round(travelTime / 60)} min`);
-        setRouteData({
-          coordinates: uniqueRoute,
-          travelTime,
-          distance: data.routes[0].summary.lengthInMeters,
-          summary: data.routes[0].summary,
-        });
-      } else {
-        toast({
-          title: "No route found",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } catch {
+    } catch (error) {
       toast({
         title: "Route calculation failed",
         status: "error",
@@ -161,27 +296,13 @@ function Booking() {
   };
 
   const toggleTraffic = () => {
-    if (!mapRef.current) return;
+    if (!trafficLayerRef.current) return;
 
     if (showTraffic) {
-      if (mapRef.current.getLayer("traffic")) {
-        mapRef.current.removeLayer("traffic");
-        mapRef.current.removeSource("traffic");
-      }
+      trafficLayerRef.current.setMap(null);
       setShowTraffic(false);
     } else {
-      mapRef.current.addSource("traffic", {
-        type: "raster",
-        tiles: [
-          `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=yoabHUGGcgHjDQHK6tSAXXx8gqxlUb99`,
-        ],
-        tileSize: 256,
-      });
-      mapRef.current.addLayer({
-        id: "traffic",
-        type: "raster",
-        source: "traffic",
-      });
+      trafficLayerRef.current.setMap(mapRef.current);
       setShowTraffic(true);
     }
   };
@@ -190,11 +311,14 @@ function Booking() {
     setWaypoints([]);
     setEta(null);
     setRouteData(null);
-    markersRef.current.forEach((marker) => marker.remove());
+    
+    // Clear markers
+    markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
-    if (mapRef.current.getSource("route")) {
-      mapRef.current.removeLayer("route");
-      mapRef.current.removeSource("route");
+    
+    // Clear directions
+    if (directionsRendererRef.current) {
+      directionsRendererRef.current.setMap(null);
     }
   };
 
