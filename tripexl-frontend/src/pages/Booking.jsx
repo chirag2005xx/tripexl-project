@@ -9,11 +9,43 @@ import {
   Heading,
   HStack,
   SimpleGrid,
+  Textarea,
+  FormControl,
+  FormLabel,
+  Checkbox,
+  CheckboxGroup,
+  Stack,
+  Badge,
+  Divider,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+  AccordionIcon,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  Switch,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 function Booking() {
+  // Original states
   const [vehicle, setVehicle] = useState("");
   const [date, setDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,6 +55,106 @@ function Booking() {
   const [showTraffic, setShowTraffic] = useState(false);
   const [routeData, setRouteData] = useState(null);
 
+  // New enhanced states
+  const [vehicleId, setVehicleId] = useState("");
+  const [driverName, setDriverName] = useState("");
+  const [driverLicense, setDriverLicense] = useState("");
+  const [driverPhone, setDriverPhone] = useState("");
+  const [notes, setNotes] = useState("");
+  const [comments, setComments] = useState("");
+  const [priority, setPriority] = useState("medium");
+  const [estimatedCost, setEstimatedCost] = useState(0);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [jobType, setJobType] = useState("delivery");
+  const [requiresSignature, setRequiresSignature] = useState(false);
+  const [isUrgent, setIsUrgent] = useState(false);
+  const [packageDetails, setPackageDetails] = useState("");
+  const [specialInstructions, setSpecialInstructions] = useState("");
+  
+  // Checklist states
+  const [vehicleChecklist, setVehicleChecklist] = useState([]);
+  const [driverChecklist, setDriverChecklist] = useState([]);
+  const [preJobChecklist, setPreJobChecklist] = useState([]);
+  
+  // Modal states
+  const { isOpen: isVehicleModalOpen, onOpen: onVehicleModalOpen, onClose: onVehicleModalClose } = useDisclosure();
+  const { isOpen: isDriverModalOpen, onOpen: onDriverModalOpen, onClose: onDriverModalClose } = useDisclosure();
+  const { isOpen: isPreJobModalOpen, onOpen: onPreJobModalOpen, onClose: onPreJobModalClose } = useDisclosure();
+
+  // Vehicle checklist items
+  const vehicleChecklistItems = [
+    "Fuel level adequate",
+    "Tire pressure checked",
+    "Engine oil level",
+    "Brake fluid level",
+    "Windshield washer fluid",
+    "Lights working (headlights, taillights, indicators)",
+    "Mirrors adjusted",
+    "Seat belts functional",
+    "Air conditioning working",
+    "GPS/Navigation system working",
+    "First aid kit present",
+    "Fire extinguisher present",
+    "Vehicle registration documents",
+    "Insurance documents",
+    "Emergency contact numbers",
+    "Cargo area clean and secure",
+    "Spare tire available",
+    "Jack and tools present",
+    "Vehicle exterior clean",
+    "No visible damage"
+  ];
+
+  // Driver checklist items
+  const driverChecklistItems = [
+    "Valid driver's license",
+    "License not expired",
+    "No recent traffic violations",
+    "Familiar with route",
+    "Emergency contacts available",
+    "Company ID badge",
+    "Uniform/dress code compliance",
+    "Phone charged and working",
+    "Cash/payment methods ready",
+    "Delivery receipts/forms",
+    "Pen/writing materials",
+    "Customer service training completed",
+    "Safety training up to date",
+    "Vehicle keys collected",
+    "Daily log/timesheet ready",
+    "Medical fitness cleared",
+    "COVID-19 safety protocols followed",
+    "Weather conditions assessed",
+    "Traffic conditions checked",
+    "Backup plans prepared"
+  ];
+
+  // Pre-job checklist items
+  const preJobChecklistItems = [
+    "Job details verified",
+    "Customer contact confirmed",
+    "Delivery address verified",
+    "Package/cargo secured",
+    "Route planned and optimized",
+    "Expected delivery time communicated",
+    "Special instructions reviewed",
+    "Payment method confirmed",
+    "Backup contact numbers available",
+    "Vehicle assigned and ready",
+    "Driver briefed on job requirements",
+    "Weather conditions acceptable",
+    "Traffic conditions assessed",
+    "Alternative routes identified",
+    "Emergency procedures reviewed",
+    "Customer availability confirmed",
+    "Delivery requirements understood",
+    "Insurance coverage verified",
+    "Documentation complete",
+    "Supervisor approval obtained"
+  ];
+
+  // Original refs
   const mapElement = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -32,7 +164,18 @@ function Booking() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  // Load Google Maps script
+  // Calculate estimated cost based on distance
+  useEffect(() => {
+    if (routeData && routeData.distance) {
+      const baseCost = 50;
+      const perKmCost = vehicle === "truck" ? 15 : vehicle === "van" ? 10 : vehicle === "car" ? 8 : 5;
+      const distanceInKm = routeData.distance / 1000;
+      const calculated = baseCost + (distanceInKm * perKmCost);
+      setEstimatedCost(Math.round(calculated));
+    }
+  }, [routeData, vehicle]);
+
+  // Load Google Maps script (original code)
   useEffect(() => {
     if (window.google) {
       initializeMap();
@@ -60,6 +203,7 @@ function Booking() {
     };
   }, []);
 
+  // Initialize map (original code)
   const initializeMap = () => {
     if (!window.google || !mapElement.current) return;
 
@@ -192,6 +336,7 @@ function Booking() {
     });
   };
 
+  // Handle search (original code)
   const handleSearch = async () => {
     if (!searchQuery || !window.google) return;
 
@@ -225,6 +370,7 @@ function Booking() {
     }
   };
 
+  // Handle route (original code)
   const handleRoute = async () => {
     if (waypoints.length < 2 || !directionsServiceRef.current || !directionsRendererRef.current) {
       toast({
@@ -295,6 +441,7 @@ function Booking() {
     }
   };
 
+  // Toggle traffic (original code)
   const toggleTraffic = () => {
     if (!trafficLayerRef.current) return;
 
@@ -307,6 +454,7 @@ function Booking() {
     }
   };
 
+  // Clear route (original code)
   const clearRoute = () => {
     setWaypoints([]);
     setEta(null);
@@ -322,12 +470,33 @@ function Booking() {
     }
   };
 
+  // Validation function
+  const validateForm = () => {
+    const errors = [];
+    
+    if (!vehicle) errors.push("Vehicle type is required");
+    if (!date) errors.push("Date is required");
+    if (!vehicleId) errors.push("Vehicle ID is required");
+    if (!driverName) errors.push("Driver name is required");
+    if (!driverLicense) errors.push("Driver license is required");
+    if (!customerName) errors.push("Customer name is required");
+    if (!customerPhone) errors.push("Customer phone is required");
+    if (waypoints.length < 2) errors.push("At least 2 waypoints are required");
+    if (!routeData) errors.push("Route must be calculated");
+    
+    return errors;
+  };
+
+  // Enhanced booking handler
   const handleBooking = () => {
-    if (!vehicle || !date || waypoints.length < 2 || !routeData) {
+    const errors = validateForm();
+    
+    if (errors.length > 0) {
       toast({
-        title: "Please complete all details and calculate the route",
+        title: "Please fix the following errors:",
+        description: errors.join(", "),
         status: "warning",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
       return;
@@ -338,13 +507,46 @@ function Booking() {
     const newJob = {
       id: Date.now().toString(),
       userId: user.id || user.email,
+      
+      // Basic details
       vehicle,
+      vehicleId,
       date,
+      jobType,
+      priority,
+      
+      // Driver details
+      driverName,
+      driverLicense,
+      driverPhone,
+      
+      // Customer details
+      customerName,
+      customerPhone,
+      
+      // Route and location
       waypoints,
       routeData,
       eta,
+      
+      // Additional details
+      notes,
+      comments,
+      packageDetails,
+      specialInstructions,
+      estimatedCost,
+      requiresSignature,
+      isUrgent,
+      
+      // Checklists
+      vehicleChecklist,
+      driverChecklist,
+      preJobChecklist,
+      
+      // Status and timestamps
       status: "booked",
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     const existingJobs = JSON.parse(localStorage.getItem(`jobs_${newJob.userId}`) || "[]");
@@ -352,18 +554,41 @@ function Booking() {
     localStorage.setItem(`jobs_${newJob.userId}`, JSON.stringify(existingJobs));
 
     toast({
-      title: "Job booked successfully",
-      description: `${vehicle} booked for ${date}`,
+      title: "Job booked successfully!",
+      description: `${vehicle} (#${vehicleId}) booked for ${date} - Driver: ${driverName}`,
       status: "success",
-      duration: 3000,
+      duration: 5000,
       isClosable: true,
     });
 
+    // Reset form
     clearRoute();
     setVehicle("");
+    setVehicleId("");
     setDate("");
     setSearchQuery("");
+    setDriverName("");
+    setDriverLicense("");
+    setDriverPhone("");
+    setCustomerName("");
+    setCustomerPhone("");
+    setNotes("");
+    setComments("");
+    setPackageDetails("");
+    setSpecialInstructions("");
+    setJobType("delivery");
+    setPriority("medium");
+    setRequiresSignature(false);
+    setIsUrgent(false);
+    setVehicleChecklist([]);
+    setDriverChecklist([]);
+    setPreJobChecklist([]);
+    
     setTimeout(() => navigate("/dashboard"), 2000);
+  };
+
+  const getCompletionPercentage = (checklist, totalItems) => {
+    return Math.round((checklist.length / totalItems) * 100);
   };
 
   return (
@@ -406,106 +631,525 @@ function Booking() {
         zIndex="0"
       />
 
-      <Box p={8} position="relative" zIndex="10">
+      <Box p={8} position="relative" zIndex="10" maxW="1200px" mx="auto">
         <VStack spacing={6}>
-          <Heading
-            bgGradient="linear(to-r, #E50914, #FF6B6B)"
-            bgClip="text"
-            fontWeight="900"
-            fontSize="32px"
-            letterSpacing="-0.02em"
-          >
-            Book a New Job
-          </Heading>
-
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="100%">
-            <Select
-              placeholder="Select vehicle"
-              value={vehicle}
-              onChange={(e) => setVehicle(e.target.value)}
-              bg="rgba(0,0,0,0.6)"
-              color="white"
+          <HStack justify="space-between" w="100%">
+            <Heading
+              bgGradient="linear(to-r, #E50914, #FF6B6B)"
+              bgClip="text"
+              fontWeight="900"
+              fontSize="32px"
+              letterSpacing="-0.02em"
             >
-              <option value="car">Car</option>
-              <option value="van">Van</option>
-              <option value="truck">Truck</option>
-              <option value="bike">Bike</option>
-            </Select>
-
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              bg="rgba(0,0,0,0.6)"
-              color="white"
-            />
-          </SimpleGrid>
-
-          <HStack w="100%">
-            <Input
-              placeholder="Search location"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              bg="rgba(0,0,0,0.6)"
-              color="white"
-            />
-            <Button
-              background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
-              color="white"
-              _hover={{ background: "#F40612" }}
-              onClick={handleSearch}
-            >
-              Search
-            </Button>
+              Book a New Job
+            </Heading>
+            {isUrgent && (
+              <Badge colorScheme="red" fontSize="md" p={2}>
+                URGENT
+              </Badge>
+            )}
           </HStack>
 
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} w="100%">
-            <Button
-              background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
-              color="white"
-              onClick={handleRoute}
-            >
-              Calculate Route
-            </Button>
-            <Button colorScheme="orange" onClick={toggleTraffic}>
-              {showTraffic ? "Hide Traffic" : "Show Traffic"}
-            </Button>
-            <Button colorScheme="red" onClick={clearRoute}>
-              Clear Route
-            </Button>
-          </SimpleGrid>
+          {/* Basic Job Details */}
+          <Box
+            bg="rgba(0,0,0,0.8)"
+            p={6}
+            borderRadius="12px"
+            border="1px solid rgba(255,255,255,0.1)"
+            w="100%"
+          >
+            <Heading size="md" color="white" mb={4}>Basic Job Details</Heading>
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+              <FormControl>
+                <FormLabel color="white">Job Type</FormLabel>
+                <Select
+                  value={jobType}
+                  onChange={(e) => setJobType(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                >
+                  <option value="delivery">Delivery</option>
+                  <option value="pickup">Pickup</option>
+                  <option value="transport">Transport</option>
+                  <option value="moving">Moving</option>
+                  <option value="courier">Courier</option>
+                </Select>
+              </FormControl>
 
+              <FormControl>
+                <FormLabel color="white">Vehicle Type</FormLabel>
+                <Select
+                  placeholder="Select vehicle"
+                  value={vehicle}
+                  onChange={(e) => setVehicle(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                >
+                  <option value="bike">Bike</option>
+                  <option value="car">Car</option>
+                  <option value="van">Van</option>
+                  <option value="truck">Truck</option>
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Vehicle ID</FormLabel>
+                <Input
+                  placeholder="Enter vehicle ID"
+                  value={vehicleId}
+                  onChange={(e) => setVehicleId(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Date</FormLabel>
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Priority</FormLabel>
+                <Select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Estimated Cost (₹)</FormLabel>
+                <NumberInput
+                  value={estimatedCost}
+                  onChange={(value) => setEstimatedCost(value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                >
+                  <NumberInputField />
+                  <NumberInputStepper>
+                    <NumberIncrementStepper />
+                    <NumberDecrementStepper />
+                  </NumberInputStepper>
+                </NumberInput>
+              </FormControl>
+            </SimpleGrid>
+
+            <HStack mt={4} spacing={6}>
+              <FormControl display="flex" alignItems="center">
+                
+                
+              </FormControl>
+
+              <FormControl display="flex" alignItems="center">
+                <FormLabel color="white" mb="0">
+                  Urgent Job
+                </FormLabel>
+                <Switch
+                  isChecked={isUrgent}
+                  onChange={(e) => setIsUrgent(e.target.checked)}
+                  colorScheme="red"
+                />
+              </FormControl>
+            </HStack>
+          </Box>
+
+          {/* Driver Details */}
+          <Box
+            bg="rgba(0,0,0,0.8)"
+            p={6}
+            borderRadius="12px"
+            border="1px solid rgba(255,255,255,0.1)"
+            w="100%"
+          >
+            <Heading size="md" color="white" mb={4}>Driver Details</Heading>
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+              <FormControl>
+                <FormLabel color="white">Driver Name</FormLabel>
+                <Input
+                  placeholder="Enter driver name"
+                  value={driverName}
+                  onChange={(e) => setDriverName(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Driver License</FormLabel>
+                <Input
+                  placeholder="Enter license number"
+                  value={driverLicense}
+                  onChange={(e) => setDriverLicense(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Driver Phone</FormLabel>
+                <Input
+                  placeholder="Enter phone number"
+                  value={driverPhone}
+                  onChange={(e) => setDriverPhone(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                />
+              </FormControl>
+            </SimpleGrid>
+          </Box>
+
+          {/* Customer Details */}
+          <Box
+            bg="rgba(0,0,0,0.8)"
+            p={6}
+            borderRadius="12px"
+            border="1px solid rgba(255,255,255,0.1)"
+            w="100%"
+          >
+            <Heading size="md" color="white" mb={4}>Customer Details</Heading>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <FormControl>
+                <FormLabel color="white">Customer Name</FormLabel>
+                <Input
+                  placeholder="Enter customer name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Customer Phone</FormLabel>
+                <Input
+                  placeholder="Enter customer phone"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                />
+              </FormControl>
+            </SimpleGrid>
+          </Box>
+
+          {/* Package & Special Instructions */}
+          <Box
+            bg="rgba(0,0,0,0.8)"
+            p={6}
+            borderRadius="12px"
+            border="1px solid rgba(255,255,255,0.1)"
+            w="100%"
+          >
+            <Heading size="md" color="white" mb={4}>Package & Instructions</Heading>
+            <VStack spacing={4}>
+              <FormControl>
+                <FormLabel color="white">Package Details</FormLabel>
+                <Textarea
+                  placeholder="Describe the package/items to be transported"
+                  value={packageDetails}
+                  onChange={(e) => setPackageDetails(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                  rows={3}
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Special Instructions</FormLabel>
+                <Textarea
+                  placeholder="Any special handling or delivery instructions"
+                  value={specialInstructions}
+                  onChange={(e) => setSpecialInstructions(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                  rows={3}
+                />
+              </FormControl>
+            </VStack>
+          </Box>
+
+          {/* Checklists */}
+          <Box
+            bg="rgba(0,0,0,0.8)"
+            p={6}
+            borderRadius="12px"
+            border="1px solid rgba(255,255,255,0.1)"
+            w="100%"
+          >
+            <Heading size="md" color="white" mb={4}>Pre-Job Checklists</Heading>
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+              <VStack>
+                <Button
+                  onClick={onDriverModalOpen}
+                  bg="rgba(229, 9, 20, 0.8)"
+                  color="white"
+                  _hover={{ bg: "rgba(229, 9, 20, 1)" }}
+                  w="100%"
+                >
+                  Driver Checklist
+                </Button>
+                <Text color="white" fontSize="sm">
+                  {getCompletionPercentage(driverChecklist, driverChecklistItems.length)}% Complete
+                </Text>
+              </VStack>
+
+              <VStack>
+                <Button
+                  onClick={onPreJobModalOpen}
+                  bg="rgba(229, 9, 20, 0.8)"
+                  color="white"
+                  _hover={{ bg: "rgba(229, 9, 20, 1)" }}
+                  w="100%"
+                >
+                  Pre-Job Checklist
+                </Button>
+                <Text color="white" fontSize="sm">
+                  {getCompletionPercentage(preJobChecklist, preJobChecklistItems.length)}% Complete
+                </Text>
+              </VStack>
+            </SimpleGrid>
+          </Box>
+
+          {/* Map and Route Planning */}
+          <Box
+            bg="rgba(0,0,0,0.8)"
+            p={6}
+            borderRadius="12px"
+            border="1px solid rgba(255,255,255,0.1)"
+            w="100%"
+          >
+            <Heading size="md" color="white" mb={4}>Route Planning</Heading>
+            
+            <HStack w="100%" mb={4}>
+              <Input
+                placeholder="Search location"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                bg="rgba(0,0,0,0.6)"
+                color="white"
+              />
+              <Button
+                background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
+                color="white"
+                _hover={{ background: "#F40612" }}
+                onClick={handleSearch}
+              >
+                Search
+              </Button>
+            </HStack>
+
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mb={4}>
+              <Button
+                background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
+                color="white"
+                onClick={handleRoute}
+              >
+                Calculate Route
+              </Button>
+              <Button colorScheme="orange" onClick={toggleTraffic}>
+                {showTraffic ? "Hide Traffic" : "Show Traffic"}
+              </Button>
+              <Button colorScheme="red" onClick={clearRoute}>
+                Clear Route
+              </Button>
+            </SimpleGrid>
+
+            {routeData && (
+              <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mb={4}>
+                <Alert status="info" bg="rgba(0,0,255,0.1)" color="white">
+                  <AlertIcon />
+                  <Box>
+                    <AlertTitle>ETA: {eta}</AlertTitle>
+                  </Box>
+                </Alert>
+                <Alert status="info" bg="rgba(0,0,255,0.1)" color="white">
+                  <AlertIcon />
+                  <Box>
+                    <AlertTitle>Distance: {(routeData.distance / 1000).toFixed(1)} km</AlertTitle>
+                  </Box>
+                </Alert>
+                <Alert status="success" bg="rgba(0,255,0,0.1)" color="white">
+                  <AlertIcon />
+                  <Box>
+                    <AlertTitle>Cost: ₹{estimatedCost}</AlertTitle>
+                  </Box>
+                </Alert>
+              </SimpleGrid>
+            )}
+
+            {waypoints.length > 0 && (
+              <Text color="blue.300" mb={4}>
+                Waypoints: {waypoints.length} (click map to add more)
+              </Text>
+            )}
+
+            <Box
+              ref={mapElement}
+              width="100%"
+              height="400px"
+              border="1px solid rgba(255,255,255,0.2)"
+              borderRadius="12px"
+              bg="black"
+            />
+          </Box>
+
+          {/* Notes and Comments */}
+          <Box
+            bg="rgba(0,0,0,0.8)"
+            p={6}
+            borderRadius="12px"
+            border="1px solid rgba(255,255,255,0.1)"
+            w="100%"
+          >
+            <Heading size="md" color="white" mb={4}>Notes & Comments</Heading>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <FormControl>
+                <FormLabel color="white">Internal Notes</FormLabel>
+                <Textarea
+                  placeholder="Internal notes for the team"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                  rows={4}
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="white">Additional Comments</FormLabel>
+                <Textarea
+                  placeholder="Any additional comments or observations"
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                  rows={4}
+                />
+              </FormControl>
+            </SimpleGrid>
+          </Box>
+
+          {/* Book Job Button */}
           <Button
             size="lg"
             background="linear-gradient(135deg, #e50914 0%, #b20710 100%)"
             color="white"
+            _hover={{ background: "#F40612" }}
             onClick={handleBooking}
+            w="100%"
+            py={6}
+            fontSize="xl"
+            fontWeight="bold"
           >
             Book Job
           </Button>
-
-          {eta && (
-            <Text fontWeight="bold" color="green.400">
-              ETA: {eta}
-            </Text>
-          )}
-
-          {waypoints.length > 0 && (
-            <Text color="blue.300">
-              Waypoints: {waypoints.length} (click map to add more)
-            </Text>
-          )}
-
-          <Box
-            ref={mapElement}
-            width="100%"
-            height="500px"
-            border="1px solid rgba(255,255,255,0.2)"
-            borderRadius="12px"
-            bg="black"
-          />
         </VStack>
       </Box>
+
+      {/* Vehicle Checklist Modal */}
+      <Modal isOpen={isVehicleModalOpen} onClose={onVehicleModalClose} size="xl">
+        <ModalOverlay />
+        <ModalContent bg="gray.900" color="white">
+          <ModalHeader>Vehicle Checklist</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <CheckboxGroup
+              value={vehicleChecklist}
+              onChange={setVehicleChecklist}
+            >
+              <Stack spacing={3}>
+                {vehicleChecklistItems.map((item, index) => (
+                  <Checkbox key={index} value={item} colorScheme="red">
+                    {item}
+                  </Checkbox>
+                ))}
+              </Stack>
+            </CheckboxGroup>
+          </ModalBody>
+          <ModalFooter>
+            <Text mr={4}>
+              {vehicleChecklist.length} of {vehicleChecklistItems.length} completed
+            </Text>
+            <Button colorScheme="red" onClick={onVehicleModalClose}>
+              Done
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Driver Checklist Modal */}
+      <Modal isOpen={isDriverModalOpen} onClose={onDriverModalClose} size="xl">
+        <ModalOverlay />
+        <ModalContent bg="gray.900" color="white">
+          <ModalHeader>Driver Checklist</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <CheckboxGroup
+              value={driverChecklist}
+              onChange={setDriverChecklist}
+            >
+              <Stack spacing={3}>
+                {driverChecklistItems.map((item, index) => (
+                  <Checkbox key={index} value={item} colorScheme="red">
+                    {item}
+                  </Checkbox>
+                ))}
+              </Stack>
+            </CheckboxGroup>
+          </ModalBody>
+          <ModalFooter>
+            <Text mr={4}>
+              {driverChecklist.length} of {driverChecklistItems.length} completed
+            </Text>
+            <Button colorScheme="red" onClick={onDriverModalClose}>
+              Done
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Pre-Job Checklist Modal */}
+      <Modal isOpen={isPreJobModalOpen} onClose={onPreJobModalClose} size="xl">
+        <ModalOverlay />
+        <ModalContent bg="gray.900" color="white">
+          <ModalHeader>Pre-Job Checklist</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <CheckboxGroup
+              value={preJobChecklist}
+              onChange={setPreJobChecklist}
+            >
+              <Stack spacing={3}>
+                {preJobChecklistItems.map((item, index) => (
+                  <Checkbox key={index} value={item} colorScheme="red">
+                    {item}
+                  </Checkbox>
+                ))}
+              </Stack>
+            </CheckboxGroup>
+          </ModalBody>
+          <ModalFooter>
+            <Text mr={4}>
+              {preJobChecklist.length} of {preJobChecklistItems.length} completed
+            </Text>
+            <Button colorScheme="red" onClick={onPreJobModalClose}>
+              Done
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <style>{`
         @keyframes float {
